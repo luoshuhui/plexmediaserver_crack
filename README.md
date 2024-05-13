@@ -31,6 +31,8 @@ Now restart Plex Media Server. All features will be unlocked.
 
 This will NOT persist through Docker image updates, as rebuilding the container will copy libraries freshly from the image.
 
+For ARM64 or for a different installation method on Linux, [check edde746's fork](https://github.com/edde746/plexmediaserver_crack).
+
 ### Building
 
 #### Windows
