@@ -2,36 +2,66 @@
 
 Enables Godmode, unlocking *all features* on (hardware transcoding, intro/credit detection, HEVC transcoding, etc..) on Plex Media Server. Including Plex Pass features without a required subscription, and including early-access/development/Plex Ninja features.
 
-## Installation
+# Installation
 
-### Windows
+## Windows
 
 1. Download `IPHLPAPI.dll` from [the latest release](https://github.com/yuv420p10le/plexmediaserver_crack/releases/latest/download/IPHLPAPI.dll) and put it in your Plex Media Server's installation folder. (e.g. `C:\Program Files\Plex\Plex Media Server`)
 2. Restart Plex Media Server. All features will be unlocked.
 
-### Linux
+## Linux
 
 x86-64 only.
 
-Written for [linuxserver/docker-plex](https://github.com/linuxserver/docker-plex).
+First, install `patchelf` from your distribution's package manager or `pip`:
 
-Get the [latest amd64 build of patchelf](https://github.com/NixOS/patchelf/releases/latest), extract the inner `./bin/patchelf` file to your `/config` folder (the same one where `"Library"` is located). Ensure it has execute permissions.
-
-Download `plexmediaserver_crack.so` from [the latest release](https://github.com/yuv420p10le/plexmediaserver_crack/releases/latest/download/plexmediaserver_crack.so) and save it somewhere. If running under Docker, `/config` works. Otherwise, use a directory that is readable by the user running Plex Media Server.
-
-Execute the following commands:
-
-```sh
-docker exec -it plex ln -s /config/plexmediaserver_crack.so /usr/lib/plexmediaserver/lib/plexmediaserver_crack.so
-docker exec -it plex /config/patchelf --remove-needed plexmediaserver_crack.so "/usr/lib/plexmediaserver/lib/libsoci_core.so"
-docker exec -it plex /config/patchelf --add-needed plexmediaserver_crack.so "/usr/lib/plexmediaserver/lib/libsoci_core.so"
+```bash
+sudo apt update && sudo apt install patchelf # Debian/Ubuntu/etc
+sudo pacman -S patchelf # Arch
+sudo yum install patchelf # Fedora/RHEL/Centos/Rocky/OpenSUSE/etc
+sudo apk update && apk add --upgrade patchelf # Alpine
+sudo pip install patchelf # pip; you might need --break-system-packages if installing if you're on an externally managed environment
 ```
 
-Now restart Plex Media Server. All features will be unlocked.
+And then:
 
-This will NOT persist through Docker image updates, as rebuilding the container will copy libraries freshly from the image.
+### Native
 
-For ARM64 or for a different installation method on Linux, [check edde746's fork](https://github.com/edde746/plexmediaserver_crack).
+The script assumes Plex Media Server is currently running.
+
+Run the following command:
+
+```bash
+sudo sh -c "$(curl -sSL https://github.com/yuv420p10le/plexmediaserver_crack/releases/latest/download/crack_native.sh)"
+```
+
+Your Plex Media Server should now be restarted with all features unlocked.
+
+For persistance with Plex updates, create the above as a bash script (run as root!) and run it manually (or, trigger it) after updates or run it as a daily cronjob.
+
+### Docker
+
+Tested on [linuxserver/docker-plex](https://github.com/linuxserver/docker-plex), but should work for all Docker setups.
+
+The script assumes Plex Media Server is currently running, that you have a mounted `/config` volume in the container, and that your container is named `plex`.  
+If your container is named differently or if your external volume is mounted elsewhere, change it at the top of the script instead of running it through this command.
+
+Run the following command: (you can emit `sudo` if the executing user is in the `docker` group)
+
+```bash
+sudo sh -c "$(curl -sSL https://github.com/yuv420p10le/plexmediaserver_crack/releases/latest/download/crack_docker.sh)"
+```
+
+Your Plex Media Server should now be restarted with all features unlocked.
+
+This will NOT persist through Docker image updates, as rebuilding the container will copy libraries freshly from the image.  
+Setup the above commands as a script for an easy installation, and optionally, set it as a cronjob to run daily.
+
+
+###  Other configurations
+
+- For an UNRAID (x86-64) setup guide, [check Mizz141's gist](https://gist.github.com/mizz141/608d21fbc2fe4480286c76cc421f40d3).
+- For binary patching for Windows/Linux (x86-64/ARM64) instead of DLL sideloading/import hijacking, [check edde746's fork](https://github.com/edde746/plexmediaserver_crack).
 
 ### Building
 
