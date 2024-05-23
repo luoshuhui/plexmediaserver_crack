@@ -77,6 +77,7 @@ Build using Visual Studio 2022, C++20.
 
 * For intro/credit detection, go to Settings -> Library -> Marker source; and select the "local detection only" option.
 * If hardware transcoding (or any other feature) does not work, it should not be related to this repository. Use Google to troubleshoot why said feature doesn't work on your setup specifically.
+* The "Skip Intro" button will not be displayed on clients that don't have the Plex Pass. It's a client sided limitation. I wrote a crack for the Plex client on Windows to circumvent it, at [plexpass_hook](https://github.com/yuv420p10le/plexpass_hook). The "Skip Credits" button will appear on all clients, including the free ones.
 
 ### Screenshots
 
