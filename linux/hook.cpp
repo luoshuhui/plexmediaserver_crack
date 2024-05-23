@@ -18,7 +18,6 @@ bool get_dottext_info(uintptr_t& start, uintptr_t& end)
 		// Only .text should have `r-xp`. This works I guess..
 		if(line.find("Plex Media Server") != std::string::npos && line.find("r-xp") != std::string::npos)
 		{
-			auto range = line.substr(0, line.find(' '));
 			start = std::stoull(line.substr(0, line.find('-')), nullptr, 16);
 			end = std::stoull(line.substr(line.find('-') + 1), nullptr, 16);
 
@@ -59,21 +58,25 @@ uintptr_t sig_scan(const uintptr_t start, const uintptr_t end, std::string_view 
 
 	const auto vec_length = pattern_vec.size();
 
-	for(uintptr_t i = start; i < end; i++)
+	for(uintptr_t i = start; i <= end - vec_length; i++)
 	{
+		bool mismatch = false;
+
 		for(uintptr_t x = 0; x < vec_length; x++)
 		{
 			const auto mem = *reinterpret_cast<uint8_t*>(i + x);
 
 			if(pattern_vec[x] != WILDCARD && mem != pattern_vec[x])
 			{
+				mismatch = true;
+
 				break;
 			}
+		}
 
-			else if(x == vec_length - 1)
-			{
-				return i;
-			}
+		if(!mismatch)
+		{
+			return i;
 		}
 	}
 
@@ -107,14 +110,11 @@ void hook()
 	// Jumps to specified address
 	uint8_t shellcode[] =
 	{
-		0x48, 0xB8, // movq rax, ?
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-
-		0x50, // push rax
-		0xC3  // ret
+		0xFF, 0x25, 0x00, 0x00, 0x00, 0x00, // jmp [rip+0x06]
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 // ?
 	};
 
-	*reinterpret_cast<decltype(&hook_is_feature_available)*>(&shellcode[2]) = &hook_is_feature_available;
+	*reinterpret_cast<decltype(&hook_is_feature_available)*>(&shellcode[6]) = &hook_is_feature_available;
 
 	mprotect(reinterpret_cast<void*>(_is_feature_available), sizeof(shellcode), PROT_READ|PROT_WRITE|PROT_EXEC);
 	memcpy(reinterpret_cast<void*>(_is_feature_available), shellcode, sizeof(shellcode));

@@ -1,6 +1,9 @@
 #include "hook.hpp"
 
-#include <MinHook.h>
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <Windows.h>
+
 #include <format>
 #include <vector>
 #include <dbghelp.h>
@@ -13,18 +16,18 @@ bool get_section_info(std::string_view name, uintptr_t& start, uintptr_t& end)
 	char filename[MAX_PATH];
 	GetModuleFileNameA(NULL, filename, sizeof(filename));
 
-	auto cur_handle = GetModuleHandleA(filename);
+	const auto cur_handle = GetModuleHandleA(filename);
 	IMAGE_NT_HEADERS* nt_hdr = ImageNtHeader(cur_handle);
 	IMAGE_SECTION_HEADER* section_hdr = reinterpret_cast<IMAGE_SECTION_HEADER*>(nt_hdr + 1);
-	uintptr_t image_base = reinterpret_cast<uintptr_t>(cur_handle);
+	const uintptr_t image_base = reinterpret_cast<uintptr_t>(cur_handle);
 
 	for(int i = 0; i < nt_hdr->FileHeader.NumberOfSections; i++, section_hdr++)
 	{
-		auto section_header_name = reinterpret_cast<char*>(section_hdr->Name);
+		const auto section_header_name = reinterpret_cast<char*>(section_hdr->Name);
 
 		if(name == section_header_name)
 		{
-			uintptr_t base_module = image_base + section_hdr->VirtualAddress;
+			const uintptr_t base_module = image_base + section_hdr->VirtualAddress;
 			start = base_module;
 			end = base_module + section_hdr->Misc.VirtualSize - 1;
 
@@ -63,23 +66,41 @@ uintptr_t sig_scan(const uintptr_t start, const uintptr_t end, std::string_view 
 		i++;
 	}
 
+	uintptr_t end_address = start;
+	MEMORY_BASIC_INFORMATION mbi{};
+	
+	while(end_address < end && VirtualQuery(reinterpret_cast<void*>(end_address), &mbi, sizeof(mbi)))
+	{
+		if((mbi.Protect & (PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY)) == 0 ||
+			(mbi.Protect & (PAGE_GUARD | PAGE_NOACCESS)) > 0)
+		{
+			break;
+		}
+
+		end_address = std::min(end, reinterpret_cast<uintptr_t>(mbi.BaseAddress) + mbi.RegionSize);
+	}
+
 	const auto vec_length = pattern_vec.size();
 
-	for(uintptr_t i = start; i < end; i++)
+	for(uintptr_t i = start; i <= end_address - vec_length; i++)
 	{
+		bool mismatch = false;
+
 		for(uintptr_t x = 0; x < vec_length; x++)
 		{
 			const auto mem = *reinterpret_cast<uint8_t*>(i + x);
 
 			if(pattern_vec[x] != WILDCARD && mem != pattern_vec[x])
 			{
+				mismatch = true;
+
 				break;
 			}
+		}
 
-			else if(x == vec_length - 1)
-			{
-				return i;
-			}
+		if(!mismatch)
+		{
+			return i;
 		}
 	}
 
@@ -106,8 +127,25 @@ void hook()
 	}
 
 	_is_feature_available = sig_scan(dottext_start, dottext_end, "41 54 41 56 41 57 48 83 EC 20 4C 8B F9 4C 8B F2");
+
+	if(_is_feature_available == 0)
+	{
+		std::cerr << "[ERR] [plexmediaserver_crack] Couldn't find is_feature_available; aborting.\n";
+
+		return;
+	}
 	
-	MH_Initialize();
-	MH_CreateHook(reinterpret_cast<void*>(_is_feature_available), &hook_is_feature_available, reinterpret_cast<void**>(&_is_feature_available));
-	MH_EnableHook(MH_ALL_HOOKS);
+	// Jumps to specified address
+	uint8_t shellcode[] =
+	{
+		0xFF, 0x25, 0x00, 0x00, 0x00, 0x00, // jmp [rip+0x06]
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 // ?
+	};
+
+	*reinterpret_cast<decltype(&hook_is_feature_available)*>(&shellcode[6]) = &hook_is_feature_available;
+
+	DWORD old_prot;
+	VirtualProtect(reinterpret_cast<void*>(_is_feature_available), sizeof(shellcode), PAGE_EXECUTE_READWRITE, &old_prot);
+	memcpy(reinterpret_cast<void*>(_is_feature_available), shellcode, sizeof(shellcode));
+	VirtualProtect(reinterpret_cast<void*>(_is_feature_available), sizeof(shellcode), old_prot, &old_prot);
 }
