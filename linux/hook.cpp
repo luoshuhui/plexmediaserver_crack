@@ -28,6 +28,21 @@ bool get_dottext_info(uintptr_t& start, uintptr_t& end)
 	return false;
 }
 
+void write_jmp(const uintptr_t from, const uintptr_t to)
+{
+	uint8_t shellcode[] =
+	{
+		0xFF, 0x25, 0x00, 0x00, 0x00, 0x00, // jmp [rip+0x06]
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 // ?
+	};
+
+	*reinterpret_cast<uintptr_t*>(&shellcode[6]) = to;
+
+	mprotect(reinterpret_cast<void*>(from), sizeof(shellcode), PROT_READ|PROT_WRITE|PROT_EXEC);
+	memcpy(reinterpret_cast<void*>(from), shellcode, sizeof(shellcode));
+	mprotect(reinterpret_cast<void*>(from), sizeof(shellcode), PROT_READ|PROT_EXEC);
+}
+
 uintptr_t sig_scan(const uintptr_t start, const uintptr_t end, std::string_view pattern)
 {
 	constexpr const uint16_t WILDCARD = 0xFFFF;
@@ -116,7 +131,5 @@ void hook()
 
 	*reinterpret_cast<decltype(&hook_is_feature_available)*>(&shellcode[6]) = &hook_is_feature_available;
 
-	mprotect(reinterpret_cast<void*>(_is_feature_available), sizeof(shellcode), PROT_READ|PROT_WRITE|PROT_EXEC);
-	memcpy(reinterpret_cast<void*>(_is_feature_available), shellcode, sizeof(shellcode));
-	mprotect(reinterpret_cast<void*>(_is_feature_available), sizeof(shellcode), PROT_READ|PROT_EXEC);
+	write_jmp(_is_feature_available, reinterpret_cast<uintptr_t>(&hook_is_feature_available));
 }

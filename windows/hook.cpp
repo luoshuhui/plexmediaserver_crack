@@ -4,7 +4,6 @@
 #define NOMINMAX
 #include <Windows.h>
 
-#include <format>
 #include <vector>
 #include <dbghelp.h>
 #include <iostream>
@@ -36,6 +35,22 @@ bool get_section_info(std::string_view name, uintptr_t& start, uintptr_t& end)
 	}
 
 	return false;
+}
+
+void write_jmp(const uintptr_t from, const uintptr_t to)
+{
+	uint8_t shellcode[] =
+	{
+		0xFF, 0x25, 0x00, 0x00, 0x00, 0x00, // jmp [rip+0x06]
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 // ?
+	};
+
+	*reinterpret_cast<uintptr_t*>(&shellcode[6]) = to;
+
+	DWORD old_prot;
+	VirtualProtect(reinterpret_cast<void*>(from), sizeof(shellcode), PAGE_EXECUTE_READWRITE, &old_prot);
+	memcpy(reinterpret_cast<void*>(from), shellcode, sizeof(shellcode));
+	VirtualProtect(reinterpret_cast<void*>(from), sizeof(shellcode), old_prot, &old_prot);
 }
 
 uintptr_t sig_scan(const uintptr_t start, const uintptr_t end, std::string_view pattern)
@@ -77,7 +92,7 @@ uintptr_t sig_scan(const uintptr_t start, const uintptr_t end, std::string_view 
 			break;
 		}
 
-		end_address = std::min(end, reinterpret_cast<uintptr_t>(mbi.BaseAddress) + mbi.RegionSize);
+		end_address = std::min(end, static_cast<uintptr_t>(reinterpret_cast<uintptr_t>(mbi.BaseAddress) + mbi.RegionSize));
 	}
 
 	const auto vec_length = pattern_vec.size();
@@ -134,18 +149,6 @@ void hook()
 
 		return;
 	}
-	
-	// Jumps to specified address
-	uint8_t shellcode[] =
-	{
-		0xFF, 0x25, 0x00, 0x00, 0x00, 0x00, // jmp [rip+0x06]
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 // ?
-	};
 
-	*reinterpret_cast<decltype(&hook_is_feature_available)*>(&shellcode[6]) = &hook_is_feature_available;
-
-	DWORD old_prot;
-	VirtualProtect(reinterpret_cast<void*>(_is_feature_available), sizeof(shellcode), PAGE_EXECUTE_READWRITE, &old_prot);
-	memcpy(reinterpret_cast<void*>(_is_feature_available), shellcode, sizeof(shellcode));
-	VirtualProtect(reinterpret_cast<void*>(_is_feature_available), sizeof(shellcode), old_prot, &old_prot);
+	write_jmp(_is_feature_available, reinterpret_cast<uintptr_t>(&hook_is_feature_available));
 }
