@@ -6,6 +6,8 @@ Enables Godmode, unlocking *all features* on (hardware transcoding, intro/credit
 
 ## Windows
 
+Note: x86-64 only. If your Plex Media Server is in "Program Files (x86)", it's an indicator of running the 32-bit version of Plex Media Server, which is not supported.
+
 1. Download `IPHLPAPI.dll` from [the latest release](https://github.com/yuv420p10le/plexmediaserver_crack/releases/latest/download/IPHLPAPI.dll) and put it in your Plex Media Server's installation folder. (e.g. `C:\Program Files\Plex\Plex Media Server`)
 2. Restart Plex Media Server. All features will be unlocked.
 
