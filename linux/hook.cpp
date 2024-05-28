@@ -122,14 +122,5 @@ void hook()
 		return;
 	}
 
-	// Jumps to specified address
-	uint8_t shellcode[] =
-	{
-		0xFF, 0x25, 0x00, 0x00, 0x00, 0x00, // jmp [rip+0x06]
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 // ?
-	};
-
-	*reinterpret_cast<decltype(&hook_is_feature_available)*>(&shellcode[6]) = &hook_is_feature_available;
-
 	write_jmp(_is_feature_available, reinterpret_cast<uintptr_t>(&hook_is_feature_available));
 }
