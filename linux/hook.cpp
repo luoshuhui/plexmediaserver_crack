@@ -98,6 +98,11 @@ uintptr_t sig_scan(const uintptr_t start, const uintptr_t end, std::string_view 
 	return 0;
 }
 
+uintptr_t follow_call_rel32(const uintptr_t address)
+{
+	return address + 5 + *reinterpret_cast<uint32_t*>(address + 1);
+}
+
 uint64_t hook_is_feature_available([[maybe_unused]] uintptr_t user, [[maybe_unused]] const char* feature)
 {
 	// `feature` is a GUID. You can use it to enable certain features rather than Godmode (everything); but there's no reason to limit ourselves.. is there?
@@ -115,12 +120,13 @@ void hook()
 		return;
 	}
 
-	const auto _is_feature_available = sig_scan(dottext_start, dottext_end, "55 48 89 E5 41 57 41 56 53 50 49 89 F7 48 89 FB 4C 8D 77 08 4C 89 F7 E8 ? ? ? ? 48 8D 7B 30");
+	const auto _is_feature_available_ref = sig_scan(dottext_start, dottext_end, "E8 ? ? ? ? 86 43");
 
-	if(_is_feature_available == 0)
+	if(_is_feature_available_ref == 0)
 	{
 		return;
 	}
 
+	const auto _is_feature_available = follow_call_rel32(_is_feature_available_ref);
 	write_jmp(_is_feature_available, reinterpret_cast<uintptr_t>(&hook_is_feature_available));
 }
